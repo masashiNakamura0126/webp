@@ -128,6 +128,49 @@ fileInput.addEventListener('change', () => {
 });
 
 // ==========================================================================
+// URL入力
+// ==========================================================================
+const urlInput = el('urlInput');
+const urlBtn = el('urlBtn');
+
+urlInput.addEventListener('input', () => {
+  urlBtn.disabled = !urlInput.value.trim();
+});
+
+urlBtn.addEventListener('click', () => loadFromURL());
+urlInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && urlInput.value.trim()) loadFromURL();
+});
+
+async function loadFromURL() {
+  const url = urlInput.value.trim();
+  if (!url) return;
+
+  urlBtn.disabled = true;
+  urlBtn.textContent = '取得中…';
+  hideResult();
+  resultPreview.classList.remove('show');
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+
+    // ファイル名をURLから推定
+    const urlPath = new URL(url).pathname;
+    const name = urlPath.split('/').pop() || 'video.mp4';
+
+    const file = new File([blob], name, { type: blob.type || 'video/mp4' });
+    loadFile(file);
+  } catch (err) {
+    showError('URLから動画を取得できませんでした。\nCORSで制限されている可能性があります。\n' + err.message);
+  } finally {
+    urlBtn.disabled = false;
+    urlBtn.textContent = '読み込む';
+  }
+}
+
+// ==========================================================================
 // ファイル読み込み — video要素でメタデータ取得
 // ==========================================================================
 async function loadFile(file) {
@@ -167,7 +210,7 @@ async function loadFile(file) {
   fileInfo.classList.add('show');
 
   // 設定の初期値
-  el('width').value = Math.min(meta.width, 480);
+  el('width').value = Math.min(meta.width, 1500);
   el('start').value = 0;
   el('end').value = meta.duration ? meta.duration.toFixed(1) : 0;
 
