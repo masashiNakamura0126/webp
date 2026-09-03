@@ -4,7 +4,15 @@
 // ==========================================================================
 
 const { FFmpeg } = FFmpegWASM;
-const { fetchFile } = FFmpegUtil;
+
+// fetchFile: File → Uint8Array
+async function fetchFile(file) {
+  if (file instanceof File || file instanceof Blob) {
+    return new Uint8Array(await file.arrayBuffer());
+  }
+  const res = await fetch(file);
+  return new Uint8Array(await res.arrayBuffer());
+}
 
 const ffmpeg = new FFmpeg();
 let ffmpegLoaded = false;
