@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>WebP Converter — 動画をWebPアニメーションに変換</title>
+<meta name="description" content="ブラウザだけでMP4/MOVをアニメーションWebPに変換。アップロード不要、すべてローカルで処理します。">
+<style>
+  :root {
+    --paper: #f5f4f1;
+    --card: #ffffff;
+    --ink: #1c1d22;
+    --ink-soft: #6a6d78;
+    --line: #e3e1db;
+    --primary: #2f4b7c;
+    --primary-soft: #eef1f7;
+    --accent: #d98324;
+    --accent-dark: #b96c15;
+    --ok: #2f8f5b;
+    --danger: #c0453b;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(28,29,34,.04), 0 8px 24px rgba(28,29,34,.06);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                 "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 560px; margin: 0 auto; padding: 28px 24px 40px; }
+
+  header { margin-bottom: 20px; }
+  header h1 {
+    font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0;
+    display: flex; align-items: center; gap: 9px;
+  }
+  header h1 .dot {
+    width: 10px; height: 10px; border-radius: 3px; background: var(--accent);
+    display: inline-block;
+  }
+  header p { margin: 6px 0 0 19px; font-size: 13px; color: var(--ink-soft); }
+  .badge {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    background: var(--primary-soft); color: var(--primary);
+    padding: 2px 7px; border-radius: 6px; margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  /* ---- ドロップゾーン ---- */
+  .drop {
+    position: relative;
+    background: var(--card);
+    border: 2px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, transform .15s;
+    box-shadow: var(--shadow);
+  }
+  .drop:hover { border-color: #c9c6bd; }
+  .drop.drag-over {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    transform: translateY(-2px);
+  }
+  .drop::before, .drop::after {
+    content: ""; position: absolute; top: 12px; bottom: 12px; width: 6px;
+    background-image: radial-gradient(var(--line) 40%, transparent 42%);
+    background-size: 6px 16px; background-repeat: repeat-y; opacity: .8;
+  }
+  .drop::before { left: 12px; }
+  .drop::after { right: 12px; }
+  .drop .icon {
+    width: 46px; height: 46px; margin: 0 auto 14px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--primary-soft); color: var(--primary);
+    border-radius: 12px; font-size: 22px;
+  }
+  .drop .big { font-size: 15px; font-weight: 600; }
+  .drop .sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 5px; }
+
+  /* ---- プレビュー ---- */
+  .preview { display: none; margin-top: 14px; text-align: center; }
+  .preview.show { display: block; }
+  .preview video {
+    max-width: 100%; max-height: 240px; border-radius: 10px;
+    box-shadow: var(--shadow);
+  }
+
+  /* ---- ファイル情報 ---- */
+  .fileinfo {
+    display: none;
+    margin-top: 14px; padding: 12px 14px;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: var(--shadow);
+    font-size: 13px;
+  }
+  .fileinfo.show { display: block; }
+  .fileinfo .name { font-weight: 600; word-break: break-all; }
+  .fileinfo .meta { color: var(--ink-soft); margin-top: 3px; font-size: 12.5px; }
+
+  /* ---- 設定パネル ---- */
+  .panel { display: none; margin-top: 16px; }
+  .panel.show { display: block; }
+  .field { margin-bottom: 16px; }
+  .field > label {
+    display: block; font-size: 12.5px; font-weight: 600;
+    margin-bottom: 7px; color: var(--ink);
+  }
+  .field .hint { font-weight: 400; color: var(--ink-soft); }
+  input[type="number"] {
+    width: 100%; padding: 9px 11px; font-size: 14px;
+    border: 1px solid var(--line); border-radius: 9px; background: var(--card);
+    color: var(--ink); font-family: inherit;
+  }
+  input[type="number"]:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .row { display: flex; gap: 12px; }
+  .row .field { flex: 1; }
+  input[type="range"] { width: 100%; accent-color: var(--primary); }
+  .range-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .range-val { font-size: 13px; font-weight: 700; color: var(--primary); }
+  .check {
+    display: flex; align-items: center; gap: 9px;
+    padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 9px; background: var(--card); cursor: pointer;
+  }
+  .check input { width: 16px; height: 16px; accent-color: var(--primary); }
+  .check .txt { font-size: 13px; }
+  .check .txt small { display: block; color: var(--ink-soft); font-size: 11.5px; }
+  details { margin-bottom: 16px; }
+  details summary {
+    font-size: 12.5px; color: var(--ink-soft); cursor: pointer;
+    padding: 4px 0; user-select: none;
+  }
+  details[open] summary { margin-bottom: 12px; color: var(--ink); font-weight: 600; }
+  select {
+    width: 100%; padding: 9px 11px; font-size: 14px; font-family: inherit;
+    border: 1px solid var(--line); border-radius: 9px; background: var(--card);
+    color: var(--ink);
+  }
+
+  /* ---- 変換ボタン ---- */
+  .convert {
+    width: 100%; padding: 13px; font-size: 15px; font-weight: 700;
+    color: #fff; background: var(--accent); border: none;
+    border-radius: 11px; cursor: pointer; font-family: inherit;
+    transition: background .15s;
+  }
+  .convert:hover { background: var(--accent-dark); }
+  .convert:disabled { background: #cbb79c; cursor: default; }
+
+  /* ---- 進捗 ---- */
+  .progress { display: none; margin-top: 16px; }
+  .progress.show { display: block; }
+  .bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .bar > span {
+    display: block; height: 100%; width: 0%;
+    background: var(--primary); transition: width .2s;
+  }
+  .progress .label { font-size: 12.5px; color: var(--ink-soft); margin-top: 8px; text-align: center; }
+
+  /* ---- 結果 ---- */
+  .result { display: none; margin-top: 16px; padding: 16px;
+    border-radius: 11px; text-align: center; }
+  .result.show { display: block; }
+  .result.ok { background: #edf7f0; border: 1px solid #c6e6d3; }
+  .result.err { background: #fbeceb; border: 1px solid #f0cbc7; }
+  .result .head { font-size: 14px; font-weight: 700; }
+  .result.ok .head { color: var(--ok); }
+  .result.err .head { color: var(--danger); }
+  .result .detail { font-size: 12px; color: var(--ink-soft); margin-top: 6px;
+    word-break: break-all; white-space: pre-wrap; text-align: left; }
+  .result .btns { margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .result button {
+    padding: 8px 14px; font-size: 13px; font-weight: 600; font-family: inherit;
+    border-radius: 9px; cursor: pointer; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink);
+  }
+  .result button.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+  /* ---- 結果プレビュー ---- */
+  .result-preview { display: none; margin-top: 14px; text-align: center; }
+  .result-preview.show { display: block; }
+  .result-preview img {
+    max-width: 100%; max-height: 300px; border-radius: 10px;
+    box-shadow: var(--shadow); background: #e8e8e8;
+  }
+
+  .note {
+    margin-top: 32px; padding: 14px; font-size: 12px; color: var(--ink-soft);
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; line-height: 1.6;
+  }
+  .note strong { color: var(--ink); }
+
+  /* ---- 初期ロード中 ---- */
+  .loading-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(245,244,241,.85); z-index: 100;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px;
+  }
+  .loading-overlay.show { display: flex; }
+  .loading-overlay .spinner {
+    width: 36px; height: 36px; border: 3px solid var(--line);
+    border-top-color: var(--primary); border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-overlay p { font-size: 14px; color: var(--ink-soft); }
+
+  input[type="file"] { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+  <!-- FFmpeg読み込み中 -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <p id="loadingMsg">FFmpeg を読み込み中…</p>
+  </div>
+
+  <div class="wrap">
+    <header>
+      <h1><span class="dot"></span>WebP Converter <span class="badge">Web版</span></h1>
+      <p>動画をドロップして、ループする WebP アニメーションに変換します</p>
+    </header>
+
+    <!-- ドロップゾーン -->
+    <div class="drop" id="dropZone">
+      <div class="icon">&#9654;</div>
+      <div class="big">ここに動画をドロップ</div>
+      <div class="sub">MP4 / MOV / WebM に対応 ・ クリックして選ぶこともできます</div>
+    </div>
+    <input type="file" id="fileInput" accept=".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm" />
+
+    <!-- プレビュー -->
+    <div class="preview" id="videoPreview">
+      <video id="previewVideo" controls muted></video>
+    </div>
+
+    <!-- ファイル情報 -->
+    <div class="fileinfo" id="fileInfo">
+      <div class="name" id="fiName"></div>
+      <div class="meta" id="fiMeta"></div>
+    </div>
+
+    <!-- 設定 -->
+    <div class="panel" id="panel">
+      <div class="row">
+        <div class="field">
+          <label>横幅 <span class="hint">(px・縦は自動)</span></label>
+          <input type="number" id="width" min="16" step="2" value="480" />
+        </div>
+        <div class="field">
+          <label>フレームレート <span class="hint">(fps)</span></label>
+          <input type="number" id="fps" min="1" max="30" value="15" />
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="range-head">
+          <label style="margin:0;">画質</label>
+          <span class="range-val" id="qualityVal">75</span>
+        </div>
+        <input type="range" id="quality" min="0" max="100" value="75" />
+      </div>
+
+      <div class="field">
+        <label class="check">
+          <input type="checkbox" id="lossless" />
+          <span class="txt">可逆(ロスレス)で変換する
+            <small>画質は最高・ファイルは大きめ。オンにすると画質スライダーは無視されます</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>開始位置 <span class="hint">(秒)</span></label>
+          <input type="number" id="start" min="0" step="0.1" value="0" />
+        </div>
+        <div class="field">
+          <label>終了位置 <span class="hint">(秒)</span></label>
+          <input type="number" id="end" min="0" step="0.1" value="0" />
+        </div>
+      </div>
+
+      <details>
+        <summary>詳細設定</summary>
+        <div class="field">
+          <label>圧縮レベル <span class="hint">(高いほど小さく・遅い)</span></label>
+          <select id="compression">
+            <option value="0">0(速い)</option>
+            <option value="2">2</option>
+            <option value="4" selected>4(標準)</option>
+            <option value="6">6(小さい)</option>
+          </select>
+        </div>
+      </details>
+
+      <button class="convert" id="convertBtn" disabled>WebP に変換</button>
+    </div>
+
+    <!-- 進捗 -->
+    <div class="progress" id="progress">
+      <div class="bar"><span id="progressBar"></span></div>
+      <div class="label" id="progressLabel">変換中… 0%</div>
+    </div>
+
+    <!-- 結果 -->
+    <div class="result" id="result">
+      <div class="head" id="resultHead"></div>
+      <div class="detail" id="resultDetail"></div>
+      <div class="btns" id="resultBtns"></div>
+    </div>
+
+    <!-- 結果プレビュー -->
+    <div class="result-preview" id="resultPreview">
+      <img id="resultImg" alt="変換結果" />
+    </div>
+
+    <div class="note">
+      <strong>プライバシー:</strong> すべての変換はお使いのブラウザ内で完結します。動画がサーバーにアップロードされることはありません。<br>
+      <strong>制限:</strong> ブラウザのメモリに依存するため、長時間の動画や高解像度では変換に時間がかかる場合があります。
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+  <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/util.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
