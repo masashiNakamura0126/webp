@@ -14,6 +14,14 @@ async function fetchFile(file) {
   return new Uint8Array(await res.arrayBuffer());
 }
 
+// toBlobURL: CDNのURLをBlob URLに変換（CORS/Worker制約を回避）
+async function toBlobURL(url, mimeType) {
+  const res = await fetch(url);
+  const buf = await res.arrayBuffer();
+  const blob = new Blob([buf], { type: mimeType });
+  return URL.createObjectURL(blob);
+}
+
 const ffmpeg = new FFmpeg();
 let ffmpegLoaded = false;
 let currentFile = null; // { file, name, url, width, height, duration }
@@ -51,9 +59,10 @@ async function initFFmpeg() {
     });
 
     const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+    el('loadingMsg').textContent = 'FFmpeg をダウンロード中…';
     await ffmpeg.load({
-      coreURL: `${baseURL}/ffmpeg-core.js`,
-      wasmURL: `${baseURL}/ffmpeg-core.wasm`,
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
     });
     ffmpegLoaded = true;
     el('loadingMsg').textContent = '準備完了';
